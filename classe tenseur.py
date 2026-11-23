@@ -32,6 +32,57 @@ class Tenseur :
         
         return out
     
+    def __pow__(self, exp):
+        out = Tenseur(np.power(self.data, exp), require_grad=self.require_grad)
+        out.graph = ("pow", (self,))
+        def _backward():
+            if self.require_grad:
+                self.grad += exp*np.power(self.data, exp-1)*out.grad
+
+        out._backward = _backward
+
+        return out
+
+    def __mul__(self, other):   
+        if isinstance(other, Tenseur):
+            out = Tenseur(self.data * other.data, require_grad=(self.require_grad or other.require_grad))
+            out.graph = ("mul", (self, other))
+            def _backward():
+                if self.require_grad:
+                    self.grad += other.data*out.grad
+                if other.require_grad:
+                    other.grad += self.data*out.grad
+        else:
+            out = Tenseur(self.data * other, require_grad=self.require_grad)
+            out.graph = ("mul", (self,))
+            def _backward():
+                if self.require_grad:
+                    self.grad += other*out.grad
+        
+        out._backward = _backward
+        
+        return out
+    
+    def __sub__(self, other):
+        if isinstance(other, Tenseur):
+            out = Tenseur(self.data - other.data, require_grad=(self.require_grad or other.require_grad))
+            out.graph = ("sub", (self, other))
+            def _backward():
+                if self.require_grad:
+                    self.grad += out.grad
+                if other.require_grad:
+                    other.grad -= out.grad
+        else:
+            out = Tenseur(self.data - other, require_grad=self.require_grad)
+            out.graph = ("sub", (self,))
+            def _backward():
+                if self.require_grad:
+                    self.grad += out.grad
+        
+        out._backward = _backward
+        
+        return out
+    
     def backward(self):
         #1 Construire l ordre topo (existe que si graphe orienté + acyclique)
         #2 Initialiser le gradient final
@@ -39,4 +90,4 @@ class Tenseur :
         #4 Appeler _backward() sur chaque tenseur
         pass
 
-print(Tenseur([[1, 2], [3, 4]]))
+print(Tenseur([1,2,3])**2)
